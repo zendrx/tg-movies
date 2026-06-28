@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TGMovies</title>
+  <link rel="icon" type="image/jpeg" href="img/icon.jpg">
+  <style>
+    :root {
+      --bg: #f0f0f0;
+      --surface: #fff;
+      --text: #1a1a1a;
+      --muted: #999;
+      --accent: #e50914;
+      --shadow: 0 12px 40px rgba(0,0,0,0.12);
+      --glow: none;
+    }
+
+    [data-theme="cinema"] {
+      --bg: #050505;
+      --surface: #0a0a0a;
+      --text: #e0e0e0;
+      --muted: #555;
+      --accent: #ff1a1a;
+      --shadow: 0 20px 80px rgba(229,9,20,0.15);
+      --glow: 0 0 60px rgba(229,9,20,0.08);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+      overflow-x: hidden;
+    }
+
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      z-index: 50;
+    }
+
+    .logo {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+
+    .logo:hover {
+      transform: scale(1.05);
+    }
+
+    .mode-btn {
+      background: var(--surface);
+      border: 1px solid var(--muted);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 20px rgba(229,9,20,0.2);
+    }
+
+    .player-wrapper {
+      width: 92%;
+      max-width: 960px;
+      aspect-ratio: 16/9;
+      background: var(--surface);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow), var(--glow);
+      transition: all 0.4s ease;
+      position: relative;
+    }
+
+    iframe, video {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .net-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      z-index: 100;
+    }
+
+    .net-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00c853, #ffd600, #ff3d00);
+      width: 0%;
+      border-radius: 0 2px 2px 0;
+      animation: pulseNet 3s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(0,200,83,0.5);
+    }
+
+    @keyframes pulseNet {
+      0%, 100% { width: 60%; opacity: 0.8; }
+      50% { width: 95%; opacity: 1; }
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      z-index: 50;
+    }
+
+    .footer a {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer a:hover {
+      color: var(--accent);
+    }
+
+    .popcorn-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      font-size: 1.4rem;
+      cursor: pointer;
+      opacity: 0.85;
+      transition: all 0.3s;
+      z-index: 100;
+      box-shadow: 0 4px 15px rgba(229,9,20,0.3);
+    }
+
+    .popcorn-btn:hover {
+      opacity: 1;
+      transform: scale(1.15) rotate(10deg);
+    }
+
+    .spidey {
+      position: fixed;
+      top: -100px;
+      left: -100px;
+      width: 80px;
+      height: 80px;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0;
+      transition: none;
+    }
+
+    .spidey.show {
+      animation: swingSpidey 2s ease-out forwards;
+    }
+
+    @keyframes swingSpidey {
+      0% {
+        opacity: 0;
+        top: -100px;
+        left: -100px;
+        transform: rotate(-45deg) scale(0.5);
+      }
+      20% {
+        opacity: 1;
+        top: 20%;
+        left: 20%;
+        transform: rotate(0deg) scale(1.2);
+      }
+      40% {
+        top: 40%;
+        left: 60%;
+        transform: rotate(15deg) scale(1);
+      }
+      60% {
+        top: 60%;
+        left: 30%;
+        transform: rotate(-10deg) scale(1.1);
+      }
+      80% {
+        opacity: 1;
+        top: 80%;
+        left: 70%;
+        transform: rotate(5deg) scale(1);
+      }
+      100% {
+        opacity: 0;
+        top: 110%;
+        left: 50%;
+        transform: rotate(0deg) scale(0.8);
+      }
+    }
+
+    .spidey img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a href="https://t.me/tgtomoviesbot" class="logo" target="_blank">🎬 TGMovies</a>
+    <button class="mode-btn" onclick="toggleMode()">🎬 Cinema Mode</button>
+  </div>
+
+  <div class="player-wrapper" id="player"></div>
+
+  <div class="footer">
+    <a href="https://t.me/tgtomoviesbot" target="_blank">@TGMoviesBot</a>
+  </div>
+
+  <div class="net-bar">
+    <div class="net-fill"></div>
+  </div>
+
+  <button class="popcorn-btn" onclick="pop()" title="Popcorn">🍿</button>
+
+  <div class="spidey" id="spidey">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Spider-Man_Logo.svg/1024px-Spider-Man_Logo.svg.png" alt="Spider-Man">
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+
+    if (id) {
+      document.getElementById('player').innerHTML =
+        `<iframe src="https://www.dailymotion.com/embed/video/${id}?autoplay=1&queue-enable=false" allowfullscreen allow="autoplay"></iframe>`;
+    } else {
+      document.getElementById('player').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:0.9rem;">No video ID provided</div>';
+    }
+
+    function toggleMode() {
+      const html = document.documentElement;
+      const btn = document.querySelector('.mode-btn');
+      if (html.getAttribute('data-theme') === 'light') {
+        html.setAttribute('data-theme', 'cinema');
+        btn.textContent = '☀️ Light Mode';
+      } else {
+        html.setAttribute('data-theme', 'light');
+        btn.textContent = '🎬 Cinema Mode';
+      }
+    }
+
+    function pop() {
+      const s = document.getElementById('spidey');
+      s.classList.remove('show');
+      void s.offsetWidth;
+      s.classList.add('show');
+    }
+  </script>
+</body>
+</html>
