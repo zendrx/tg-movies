@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>???</title>
+  <link rel="icon" type="image/jpeg" href="img/icon.jpg">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      cursor: not-allowed;
+    }
+
+    .glitch {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #fff;
+      position: relative;
+      animation: glitch 2s infinite;
+      letter-spacing: 4px;
+    }
+
+    .glitch::before,
+    .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .glitch::before {
+      left: 2px;
+      text-shadow: -2px 0 #ff0000;
+      clip: rect(24px, 550px, 90px, 0);
+      animation: glitch-anim-1 3s infinite linear alternate-reverse;
+    }
+
+    .glitch::after {
+      left: -2px;
+      text-shadow: -2px 0 #00ff00;
+      clip: rect(85px, 550px, 140px, 0);
+      animation: glitch-anim-2 2.5s infinite linear alternate-reverse;
+    }
+
+    @keyframes glitch {
+      0%, 100% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+    }
+
+    @keyframes glitch-anim-1 {
+      0% { clip: rect(20px, 9999px, 50px, 0); }
+      25% { clip: rect(80px, 9999px, 120px, 0); }
+      50% { clip: rect(10px, 9999px, 60px, 0); }
+      75% { clip: rect(90px, 9999px, 130px, 0); }
+      100% { clip: rect(40px, 9999px, 80px, 0); }
+    }
+
+    @keyframes glitch-anim-2 {
+      0% { clip: rect(60px, 9999px, 100px, 0); }
+      25% { clip: rect(10px, 9999px, 40px, 0); }
+      50% { clip: rect(100px, 9999px, 140px, 0); }
+      75% { clip: rect(30px, 9999px, 70px, 0); }
+      100% { clip: rect(70px, 9999px, 110px, 0); }
+    }
+
+    .sub {
+      margin-top: 2rem;
+      color: #444;
+      font-size: 0.9rem;
+      animation: flicker 4s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+      52% { opacity: 0.1; }
+      54% { opacity: 1; }
+    }
+
+    .eyes {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .eye {
+      position: absolute;
+      width: 40px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0;
+;
+      animation: blink 5s infinite;
+    }
+
+    .eye::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      background: #000;
+      border-radius: 50%;
+    }
+
+    .eye:nth-child(1) { top: 20%; left: 15%; animation-delay: 0s; }
+    .eye:nth-child(2) { top: 60%; left: 80%; animation-delay: 1.5s; }
+    .eye:nth-child(3) { top: 40%; left: 50%; animation-delay: 3s; }
+    .eye:nth-child(4) { top: 80%; left: 30%; animation-delay: 2s; }
+    .eye:nth-child(5) { top: 10%; left: 70%; animation-delay: 4s; }
+
+    @keyframes blink {
+      0%, 90%, 100% { opacity: 0; }
+      92% { opacity: 0.6; }
+      94% { opacity: 0; }
+      96% { opacity: 0.8; }
+    }
+
+    .noise {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.15),
+        rgba(0,0,0,0.15) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .blood {
+      position: fixed;
+      top: -100%;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, transparent 0%, rgba(139,0,0,0.3) 100%);
+      animation: drip 8s infinite;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    @keyframes drip {
+      0% { top: -100%; }
+      50% { top: 0%; }
+      100% { top: 100%; }
+    }
+
+    .escape {
+      margin-top: 3rem;
+      color: #333;
+      font-size: 0.7rem;
+      text-decoration: none;
+      border: 1px solid #333;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s;
+    }
+
+    .escape:hover {
+      color: #ff0000;
+      border-color: #ff0000;
+      box-shadow: 0 0 20px rgba(255,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="eyes">
+    <div class="eye"></div>
+    <div class="eye"></div>
+    <div class="eye"></div>
+    <div class="eye"></div>
+    <div class="eye"></div>
+  </div>
+
+  <div class="noise"></div>
+  <div class="blood"></div>
+
+  <div class="glitch" data-text="YOU SHOULDN'T BE HERE">YOU SHOULDN'T BE HERE</div>
+
+  <div class="sub">...they are watching...</div>
+
+  <a href="https://t.me/tgtomoviesbot" class="escape">[ ESCAPE ]</a>
+</body>
+</html>
