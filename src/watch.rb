@@ -33,7 +33,7 @@ module Watch
         next
       end
 
-      watch_link = "https://tomoviestv.netlify.app/watch=#{video[:id]}"
+      watch_link = "https://tomoviestv.netlify.app/watch.html?id=#{video[:id]}"
 
       message = <<~MSG
         ✅ *#{video[:title]}*
