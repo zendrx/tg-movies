@@ -2,7 +2,7 @@
 module Handlers
   module Account
     def self.register(bot)
-      bot.command('account') do |ctx|
+      bot.hears('👤 Account') do |ctx|
         user = ctx.from
 
         if user.nil?
@@ -15,17 +15,16 @@ module Handlers
         user_id = user.id
         language = user.language_code || "Unknown"
         is_premium = user.is_premium ? "💎 Premium" : "🆓 Free"
-        is_bot = user.is_bot ? "🤖 Bot" : "👤 Human"
 
-        visit_count = ctx.session[:visit_count] ||= 0
-        ctx.session[:visit_count] += 1
+        # Referral stats
+        referred_by = ctx.session[:referred_by]
+        referral_count = ctx.session[:referral_count] || 0
 
-        badge = case visit_count
-                when 0 then "🆕 Newbie"
-                when 1..5 then "🎬 Watcher"
-                when 6..20 then "🍿 Movie Buff"
-                else "🏆 Cinema Legend"
-                end
+        referral_info = if referred_by
+                          "🔗 *Referred By:* `#{referred_by}`\n"
+                        else
+                          ""
+                        end
 
         caption = <<~MSG
           👤 *Account Profile*
@@ -35,11 +34,9 @@ module Handlers
           🆔 *ID:* `#{user_id}`
           🌐 *Language:* #{language.upcase}
           ⭐ *Status:* #{is_premium}
-          🤖 *Type:* #{is_bot}
 
-          📊 *Stats*
-          🎯 *Visits:* #{visit_count + 1}
-          🏅 *Rank:* #{badge}
+          📊 *Referral Stats*
+          #{referral_info}👥 *Referrals:* #{referral_count}
         MSG
 
         ctx.photo(
