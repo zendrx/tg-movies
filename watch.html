@@ -5,31 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TGMovies</title>
   <link rel="icon" type="image/jpeg" href="img/icon.jpg">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     :root {
-      --bg: #f0f0f0;
+      --bg: #f5f5f7;
       --surface: #fff;
       --text: #1a1a1a;
-      --muted: #999;
+      --muted: #86868b;
       --accent: #e50914;
-      --shadow: 0 12px 40px rgba(0,0,0,0.12);
+      --shadow: 0 20px 60px rgba(0,0,0,0.08);
       --glow: none;
+      --rope-color: #1a1a1a;
+      --cursor-glow: rgba(229,9,20,0.15);
     }
 
     [data-theme="cinema"] {
       --bg: #050505;
-      --surface: #0a0a0a;
-      --text: #e0e0e0;
+      --surface: #0d0d0d;
+      --text: #f5f5f7;
       --muted: #555;
-      --accent: #ff1a1a;
-      --shadow: 0 20px 80px rgba(229,9,20,0.15);
-      --glow: 0 0 60px rgba(229,9,20,0.08);
+      --accent: #ff2d2d;
+      --shadow: 0 20px 80px rgba(229,9,20,0.12);
+      --glow: 0 0 80px rgba(229,9,20,0.06);
+      --rope-color: #ff2d2d;
+      --cursor-glow: rgba(255,45,45,0.2);
     }
 
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      cursor: none !important;
     }
 
     body {
@@ -41,10 +47,56 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      transition: background 0.4s ease, color 0.4s ease;
+      transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1), color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
       overflow-x: hidden;
+      position: relative;
     }
 
+    /* Custom Cursor */
+    .cursor-main {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.1s ease, width 0.2s ease, height 0.2s ease;
+      transform: translate(-50%, -50%);
+      mix-blend-mode: difference;
+    }
+
+    .cursor-dot {
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+    }
+
+    .cursor-trail {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: var(--cursor-glow);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      filter: blur(4px);
+    }
+
+    .cursor-main.hovering {
+      width: 50px;
+      height: 50px;
+      border-width: 1px;
+      background: rgba(229,9,20,0.1);
+    }
+
+    /* Top Bar */
     .top-bar {
       position: fixed;
       top: 0;
@@ -53,67 +105,223 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1rem 1.5rem;
+      padding: 1.2rem 2rem;
       z-index: 50;
     }
 
     .logo {
-      font-size: 1.3rem;
-      font-weight: 700;
+      font-size: 1.4rem;
+      font-weight: 800;
       color: var(--accent);
-      letter-spacing: -0.5px;
+      letter-spacing: -1px;
       text-decoration: none;
-      transition: transform 0.2s;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .logo:hover {
-      transform: scale(1.05);
+      transform: scale(1.08);
     }
 
-    .mode-btn {
+    .logo-icon {
+      font-size: 1.6rem;
+    }
+
+    /* Rope Toggle */
+    .rope-container {
+      position: fixed;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 200px;
+      width: 60px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .rope-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      font-weight: 600;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transition: color 0.3s;
+    }
+
+    .rope {
+      width: 3px;
+      height: 120px;
+      background: linear-gradient(to bottom, var(--rope-color) 0%, var(--rope-color) var(--rope-progress, 50%), var(--muted) var(--rope-progress, 50%), var(--muted) 100%);
+      border-radius: 3px;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .rope-handle {
+      position: absolute;
+      left: 50%;
+      top: var(--rope-progress, 50%);
+      transform: translate(-50%, -50%);
+      width: 28px;
+      height: 28px;
       background: var(--surface);
-      border: 1px solid var(--muted);
-      color: var(--text);
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.3s;
-      backdrop-filter: blur(10px);
+      border: 3px solid var(--rope-color);
+      border-radius: 50%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2), 0 0 0 4px var(--bg);
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
     }
 
-    .mode-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      box-shadow: 0 0 20px rgba(229,9,20,0.2);
+    .rope-handle:active {
+      transform: translate(-50%, -50%) scale(0.9);
     }
 
-    .player-wrapper {
-      width: 92%;
-      max-width: 960px;
-      aspect-ratio: 16/9;
-      background: var(--surface);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: var(--shadow), var(--glow);
-      transition: all 0.4s ease;
+    .rope-handle::before {
+      content: '☀️';
+      filter: grayscale(0);
+      transition: filter 0.3s;
+    }
+
+    [data-theme="cinema"] .rope-handle::before {
+      content: '🌙';
+      filter: grayscale(0);
+    }
+
+    .rope-container:hover .rope-handle {
+      transform: translate(-50%, -50%) scale(1.15);
+      box-shadow: 0 6px 30px rgba(0,0,0,0.3), 0 0 0 6px var(--bg), 0 0 20px var(--accent);
+    }
+
+    .rope-hitbox {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+      transform: translateX(-50%);
+      cursor: grab;
+    }
+
+    .rope-hitbox:active {
+      cursor: grabbing;
+    }
+
+    /* Player */
+    .player-container {
+      width: 90%;
+      max-width: 1000px;
       position: relative;
     }
 
-    iframe, video {
+    .player-wrapper {
       width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
+      aspect-ratio: 16/9;
+      background: var(--surface);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow), var(--glow);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
     }
 
+    video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      margin-top: 0.75rem;
+      gap: 1rem;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeUp 0.5s 0.3s forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .quality-select {
+      background: var(--surface);
+      border: 1.5px solid var(--muted);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+
+    .quality-select:hover {
+      border-color: var(--accent);
+    }
+
+    .quality-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(229,9,20,0.15);
+    }
+
+    .subtitle-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      transition: color 0.3s;
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--muted);
+    }
+
+    .subtitle-toggle:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .subtitle-toggle input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Network Bar */
     .net-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      height: 3px;
-      background: rgba(255,255,255,0.05);
+      height: 2px;
+      background: rgba(255,255,255,0.03);
       z-index: 100;
     }
 
@@ -121,106 +329,103 @@
       height: 100%;
       background: linear-gradient(90deg, #00c853, #ffd600, #ff3d00);
       width: 0%;
-      border-radius: 0 2px 2px 0;
-      animation: pulseNet 3s ease-in-out infinite;
-      box-shadow: 0 0 10px rgba(0,200,83,0.5);
+      border-radius: 0 1px 1px 0;
+      animation: pulseNet 4s ease-in-out infinite;
+      box-shadow: 0 0 8px rgba(0,200,83,0.4);
     }
 
     @keyframes pulseNet {
-      0%, 100% { width: 60%; opacity: 0.8; }
-      50% { width: 95%; opacity: 1; }
+      0%, 100% { width: 55%; opacity: 0.7; }
+      50% { width: 92%; opacity: 1; }
     }
 
+    /* Footer */
     .footer {
-      margin-top: 1.5rem;
+      margin-top: 2rem;
       text-align: center;
       z-index: 50;
+      opacity: 0;
+      animation: fadeUp 0.5s 0.5s forwards;
     }
 
     .footer a {
       color: var(--muted);
       font-size: 0.8rem;
       text-decoration: none;
-      transition: color 0.2s;
+      transition: all 0.3s;
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
 
     .footer a:hover {
       color: var(--accent);
+      letter-spacing: 1px;
     }
 
+    /* Popcorn Button */
     .popcorn-btn {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
+      bottom: 30px;
+      right: 30px;
       background: var(--accent);
       border: none;
       color: #fff;
-      width: 52px;
-      height: 52px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       cursor: pointer;
-      opacity: 0.85;
-      transition: all 0.3s;
+      opacity: 0.9;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 100;
-      box-shadow: 0 4px 15px rgba(229,9,20,0.3);
+      box-shadow: 0 8px 30px rgba(229,9,20,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .popcorn-btn:hover {
       opacity: 1;
-      transform: scale(1.15) rotate(10deg);
+      transform: scale(1.2) rotate(15deg);
+      box-shadow: 0 12px 40px rgba(229,9,20,0.5);
     }
 
+    /* Spider-Man Animation */
     .spidey {
       position: fixed;
-      top: -100px;
-      left: -100px;
-      width: 80px;
-      height: 80px;
-      z-index: 90;
+      top: 50%;
+      left: 50%;
+      width: 150px;
+      height: 150px;
+      z-index: 200;
       pointer-events: none;
       opacity: 0;
+      transform: translate(-50%, -50%) scale(0) rotate(-360deg);
       transition: none;
     }
 
     .spidey.show {
-      animation: swingSpidey 2s ease-out forwards;
+      animation: spideyEpic 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
     }
 
-    @keyframes swingSpidey {
+    @keyframes spideyEpic {
       0% {
         opacity: 0;
-        top: -100px;
-        left: -100px;
-        transform: rotate(-45deg) scale(0.5);
+        transform: translate(-50%, -50%) scale(0) rotate(-360deg);
       }
-      20% {
+      25% {
         opacity: 1;
-        top: 20%;
-        left: 20%;
-        transform: rotate(0deg) scale(1.2);
+        transform: translate(-50%, -50%) scale(1.4) rotate(20deg);
       }
-      40% {
-        top: 40%;
-        left: 60%;
-        transform: rotate(15deg) scale(1);
+      50% {
+        transform: translate(-50%, -50%) scale(1) rotate(-10deg) translateY(-30px);
       }
-      60% {
-        top: 60%;
-        left: 30%;
-        transform: rotate(-10deg) scale(1.1);
-      }
-      80% {
-        opacity: 1;
-        top: 80%;
-        left: 70%;
-        transform: rotate(5deg) scale(1);
+      75% {
+        transform: translate(-50%, -50%) scale(1.1) rotate(5deg) translateY(10px);
       }
       100% {
         opacity: 0;
-        top: 110%;
-        left: 50%;
-        transform: rotate(0deg) scale(0.8);
+        transform: translate(-50%, -50%) scale(0.2) rotate(0deg) translateY(100px);
       }
     }
 
@@ -228,62 +433,367 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 500;
+      display: none;
+    }
+
+    .error-msg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .error-msg a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* Particles */
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9997;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.6;
     }
   </style>
 </head>
 <body>
+  <!-- Custom Cursor -->
+  <div class="cursor-main" id="cursorMain"></div>
+  <div class="cursor-dot" id="cursorDot"></div>
+  <div class="cursor-trail" id="cursorTrail"></div>
+
+  <!-- Top Bar -->
   <div class="top-bar">
-    <a href="https://t.me/tgtomoviesbot" class="logo" target="_blank">🎬 TGMovies</a>
-    <button class="mode-btn" onclick="toggleMode()">🎬 Cinema Mode</button>
+    <a href="https://t.me/tgtomoviesbot" class="logo" target="_blank">
+      <span class="logo-icon">🎬</span>
+      <span>TGMovies</span>
+    </a>
   </div>
 
-  <div class="player-wrapper" id="player"></div>
+  <!-- Rope Theme Toggle -->
+  <div class="rope-container" id="ropeContainer">
+    <span class="rope-label">Theme</span>
+    <div class="rope" id="rope" style="--rope-progress: 0%;">
+      <div class="rope-hitbox" id="ropeHitbox"></div>
+      <div class="rope-handle" id="ropeHandle"></div>
+    </div>
+    <span class="rope-label" style="transform: rotate(180deg);">Drag</span>
+  </div>
 
+  <!-- Player -->
+  <div class="player-container">
+    <div class="player-wrapper" id="player">
+      <div class="loading" id="loading">Loading stream...</div>
+    </div>
+
+    <div class="controls-bar" id="controls">
+      <div class="control-group">
+        <select class="quality-select" id="quality">
+          <option value="auto">Auto Quality</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="subtitle-toggle">
+          <input type="checkbox" id="subtitles">
+          <span>Subtitles</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
   <div class="footer">
     <a href="https://t.me/tgtomoviesbot" target="_blank">@TGMoviesBot</a>
   </div>
 
+  <!-- Network Bar -->
   <div class="net-bar">
     <div class="net-fill"></div>
   </div>
 
-  <button class="popcorn-btn" onclick="pop()" title="Popcorn">🍿</button>
+  <!-- Popcorn Button -->
+  <button class="popcorn-btn" id="popcornBtn" title="Popcorn">🍿</button>
 
+  <!-- Spider-Man -->
   <div class="spidey" id="spidey">
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Spider-Man_Logo.svg/1024px-Spider-Man_Logo.svg.png" alt="Spider-Man">
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
+    // ===== CUSTOM CURSOR =====
+    const cursorMain = document.getElementById('cursorMain');
+    const cursorDot = document.getElementById('cursorDot');
+    const cursorTrail = document.getElementById('cursorTrail');
+    let mouseX = 0, mouseY = 0;
+    let trailX = 0, trailY = 0;
 
-    if (id) {
-      document.getElementById('player').innerHTML =
-        `<iframe src="https://www.dailymotion.com/embed/video/${id}?autoplay=1&queue-enable=false" allowfullscreen allow="autoplay"></iframe>`;
-    } else {
-      document.getElementById('player').innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:0.9rem;">No video ID provided</div>';
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursorMain.style.left = mouseX + 'px';
+      cursorMain.style.top = mouseY + 'px';
+      cursorDot.style.left = mouseX + 'px';
+      cursorDot.style.top = mouseY + 'px';
+      
+      // Spawn particles
+      if (Math.random() > 0.7) spawnParticle(mouseX, mouseY);
+    });
+
+    function animateTrail() {
+      trailX += (mouseX - trailX) * 0.15;
+      trailY += (mouseY - trailY) * 0.15;
+      cursorTrail.style.left = trailX + 'px';
+      cursorTrail.style.top = trailY + 'px';
+      requestAnimationFrame(animateTrail);
+    }
+    animateTrail();
+
+    // Hover effects
+    document.querySelectorAll('a, button, select, .rope-hitbox').forEach(el => {
+      el.addEventListener('mouseenter', () => cursorMain.classList.add('hovering'));
+      el.addEventListener('mouseleave', () => cursorMain.classList.remove('hovering'));
+    });
+
+    // Particles
+    function spawnParticle(x, y) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 4 + 2;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
+      document.body.appendChild(p);
+      
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = Math.random() * 30 + 10;
+      const dx = Math.cos(angle) * velocity;
+      const dy = Math.sin(angle) * velocity;
+      
+      let opacity = 0.6;
+      let px = x, py = y;
+      
+      function animateParticle() {
+        opacity -= 0.02;
+        px += dx * 0.05;
+        py += dy * 0.05;
+        p.style.opacity = opacity;
+        p.style.left = px + 'px';
+        p.style.top = py + 'px';
+        p.style.transform = `scale(${opacity})`;
+        
+        if (opacity > 0) requestAnimationFrame(animateParticle);
+        else p.remove();
+      }
+      animateParticle();
     }
 
-    function toggleMode() {
-      const html = document.documentElement;
-      const btn = document.querySelector('.mode-btn');
-      if (html.getAttribute('data-theme') === 'light') {
+    // ===== ROPE THEME TOGGLE =====
+    const rope = document.getElementById('rope');
+    const ropeHandle = document.getElementById('ropeHandle');
+    const ropeHitbox = document.getElementById('ropeHitbox');
+    const html = document.documentElement;
+    let isDragging = false;
+    let isCinema = false;
+
+    function setRopeProgress(percent) {
+      rope.style.setProperty('--rope-progress', percent + '%');
+    }
+
+    function toggleTheme() {
+      isCinema = !isCinema;
+      if (isCinema) {
         html.setAttribute('data-theme', 'cinema');
-        btn.textContent = '☀️ Light Mode';
+        setRopeProgress(100);
       } else {
         html.setAttribute('data-theme', 'light');
-        btn.textContent = '🎬 Cinema Mode';
+        setRopeProgress(0);
       }
     }
 
-    function pop() {
+    // Click toggle
+    ropeHitbox.addEventListener('click', toggleTheme);
+
+    // Drag functionality
+    ropeHitbox.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      ropeHitbox.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = rope.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      setRopeProgress(percent);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      ropeHitbox.style.cursor = 'grab';
+      const currentProgress = parseFloat(rope.style.getPropertyValue('--rope-progress') || 0);
+      if (currentProgress > 50 && !isCinema) toggleTheme();
+      else if (currentProgress <= 50 && isCinema) toggleTheme();
+      else setRopeProgress(isCinema ? 100 : 0);
+    });
+
+    // Touch support
+    ropeHitbox.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      e.preventDefault();
+    });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const rect = rope.getBoundingClientRect();
+      const touch = e.touches[0];
+      const percent = Math.max(0, Math.min(100, ((touch.clientY - rect.top) / rect.height) * 100));
+      setRopeProgress(percent);
+    });
+
+    document.addEventListener('touchend', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const currentProgress = parseFloat(rope.style.getPropertyValue('--rope-progress') || 0);
+      if (currentProgress > 50 && !isCinema) toggleTheme();
+      else if (currentProgress <= 50 && isCinema) toggleTheme();
+      else setRopeProgress(isCinema ? 100 : 0);
+    });
+
+    // ===== VIDEO PLAYER =====
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const player = document.getElementById('player');
+    const loading = document.getElementById('loading');
+    const controls = document.getElementById('controls');
+    const qualitySelect = document.getElementById('quality');
+
+    if (id) {
+      loading.style.display = 'block';
+      
+      fetch(`https://www.dailymotion.com/player/metadata/video/${id}`)
+        .then(r => r.json())
+        .then(data => {
+          const qualities = data.qualities;
+          let streamUrl = null;
+          const qualityMap = {};
+
+          if (qualities) {
+            // Extract all quality levels
+            Object.keys(qualities).forEach(key => {
+              if (key === 'auto') {
+                const auto = qualities[key][0];
+                if (auto && auto.type === 'application/x-mpegURL') {
+                  streamUrl = auto.url;
+                }
+              } else {
+                const streams = qualities[key];
+                if (Array.isArray(streams)) {
+                  const hls = streams.find(s => s.type === 'application/x-mpegURL');
+                  if (hls) {
+                    qualityMap[key] = hls.url;
+                    if (!streamUrl) streamUrl = hls.url;
+                  }
+                }
+              }
+            });
+          }
+
+          if (streamUrl) {
+            // Populate quality selector
+            Object.keys(qualityMap).sort((a, b) => parseInt(b) - parseInt(a)).forEach(q => {
+              const option = document.createElement('option');
+              option.value = qualityMap[q];
+              option.textContent = q + 'p';
+              qualitySelect.appendChild(option);
+            });
+
+            const video = document.createElement('video');
+            video.controls = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            
+            if (Hls.isSupported()) {
+              const hls = new Hls();
+              hls.loadSource(streamUrl);
+              hls.attachMedia(video);
+              
+              hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                loading.style.display = 'none';
+                controls.style.display = 'flex';
+              });
+
+              // Quality change
+              qualitySelect.addEventListener('change', () => {
+                const selected = qualitySelect.value;
+                if (selected === 'auto') {
+                  hls.currentLevel = -1;
+                } else {
+                  hls.loadSource(selected);
+                }
+              });
+
+            } else {
+              video.src = streamUrl;
+              video.addEventListener('loadeddata', () => {
+                loading.style.display = 'none';
+                controls.style.display = 'flex';
+              });
+            }
+
+            player.innerHTML = '';
+            player.appendChild(video);
+
+            // Subtitle toggle (placeholder - Dailymotion doesn't expose subs easily)
+            document.getElementById('subtitles').addEventListener('change', (e) => {
+              if (e.target.checked) {
+                // Show toast or indicator that subtitles requested
+                const toast = document.createElement('div');
+                toast.textContent = 'Subtitles: Not available for this stream';
+                toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);padding:10px 20px;border-radius:20px;font-size:0.8rem;z-index:300;box-shadow:var(--shadow);border:1px solid var(--accent);';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+              }
+            });
+
+          } else {
+            player.innerHTML = '<div class="error-msg">Stream unavailable for this video</div>';
+          }
+        })
+        .catch(() => {
+          player.innerHTML = '<div class="error-msg">Error loading stream.<br><a href="https://t.me/tgtomoviesbot">Try another video</a></div>';
+        });
+    } else {
+      player.innerHTML = '<div class="error-msg">No video ID provided.<br><a href="https://t.me/tgtomoviesbot">Open Bot</a></div>';
+    }
+
+    // ===== POPCORN / SPIDER-MAN =====
+    document.getElementById('popcornBtn').addEventListener('click', () => {
       const s = document.getElementById('spidey');
       s.classList.remove('show');
       void s.offsetWidth;
       s.classList.add('show');
-    }
+    });
   </script>
 </body>
 </html>
