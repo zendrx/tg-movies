@@ -2,78 +2,116 @@
 require 'httparty'
 
 module Handlers
- module Search
-   API_BASE = "https://api.dailymotion.com"
+  module Search
+    API_BASE = "https://api.dailymotion.com"
 
-   def self.register(bot)
-     bot.command('search') do |ctx|
-       query = ctx.command_args&.strip
+    def self.register(bot)
+      bot.command('search') do |ctx|
+        query = ctx.command_args&.strip
 
-       if query.nil? || query.empty?
-         ctx.reply("🎬 *Search for a movie or series*\n\nUsage: `/search Movie Name`", parse_mode: "Markdown")
-         next
-       end
+        if query.nil? || query.empty?
+          ctx.reply(
+            "🎬 *Search for a movie or series*\n\n" \
+            "Usage: `/search <movie name>`\n" \
+            "Example: `/search Spider Man`",
+            parse_mode: "Markdown"
+          )
+          next
+        end
 
-       ctx.typing
+        ctx.typing
 
-       results = search_videos(query)
+        results = search_videos(query)
 
-       if results.empty?
-         ctx.reply("❌ No results found for *#{query}*\n\nTry a different title.", parse_mode: "Markdown")
-         next
-       end
+        if results.empty?
+          ctx.reply(
+            "❌ *No results found for:* `#{query}`\n\n" \
+            "💡 *Tips:*\n" \
+            "• Check your spelling\n" \
+            "• Try a shorter name\n" \
+            "• Use English titles",
+            parse_mode: "Markdown"
+          )
+          next
+        end
 
-       results.each do |video|
-         message = <<~MSG
-           ✅ *#{video[:title]}*
+        lines = results.map.with_index(1) do |video, i|
+          rating_bar = rating_visual(video[:rating])
+          views = format_views(video[:views])
+          duration = format_duration(video[:duration])
 
-           ⭐ Rating: #{video[:rating] || 'N/A'}
-           👁 Views: #{format_views(video[:views])}
-           ⏱ Duration: #{format_duration(video[:duration])}
-         MSG
+          <<~RESULT
+            #{i}. #{video[:title]}
+            ⭐ #{video[:rating] || 'N/A'} #{rating_bar}
+            👁 #{views}  ⏱ #{duration}
+          RESULT
+        end
 
-         ctx.reply(message, parse_mode: "Markdown")
-       end
-     end
-   end
+        message = <<~MSG
+          🔍 *Search Results for:* `#{query}`
 
-   private
+          #{lines.join("\n")}
 
-   def self.search_videos(query)
-     response = HTTParty.get("#{API_BASE}/videos", query: {
-       search: query,
-       limit: 5,
-       fields: "id,title,duration,views_total,rating"
-     })
+          📌 *Found #{results.length} result#{results.length > 1 ? 's' : ''}*
+          💡 Use `/watch <name> <code>` to stream
+        MSG
 
-     return [] unless response.success?
+        ctx.reply(message, parse_mode: "Markdown")
+      end
+    end
 
-     data = response.parsed_response
-     return [] unless data["list"]
+    private
 
-     data["list"].map do |v|
-       {
-         id: v["id"],
-         title: v["title"],
-         duration: v["duration"],
-         views: v["views_total"],
-         rating: v["rating"]
-       }
-     end
-   rescue => e
-     []
-   end
+    def self.search_videos(query)
+      response = HTTParty.get(
+        "#{API_BASE}/videos",
+        query: {
+          search: query,
+          limit: 5,
+          fields: "id,title,duration,views_total,rating"
+        }
+      )
 
-   def self.format_views(num)
-     return "N/A" unless num
-     num >= 1_000_000 ? "#{(num / 1_000_000.0).round(1)}M" : num >= 1_000 ? "#{(num / 1_000.0).round(1)}K" : num.to_s
-   end
+      return [] unless response.success?
 
-   def self.format_duration(seconds)
-     return "N/A" unless seconds
-     min, sec = seconds.divmod(60)
-     hr, min = min.divmod(60)
-     hr > 0 ? "#{hr}h #{min}m" : "#{min}m #{sec}s"
-   end
- end
+      data = response.parsed_response
+      return [] unless data["list"]
+
+      data["list"].map do |v|
+        {
+          id: v["id"],
+          title: v["title"],
+          duration: v["duration"],
+          views: v["views_total"],
+          rating: v["rating"]
+        }
+      end
+    rescue => e
+      []
+    end
+
+    def self.rating_visual(rating)
+      return "⚪⚪⚪⚪⚪" unless rating
+      stars = (rating / 2.0).round
+      "⭐" * stars + "⚫" * (5 - stars)
+    end
+
+    def self.format_views(num)
+      return "N/A" unless num
+      if num >= 1_000_000
+        "#{(num / 1_000_000.0).round(1)}M"
+      elsif num >= 1_000
+        "#{(num / 1_000.0).round(1)}K"
+      else
+        num.to_s
+      end
+    end
+
+    def self.format_duration(seconds)
+      return "N/A" unless seconds
+      min, sec = seconds.divmod(60)
+      hr, min = min.divmod(60)
+      hr > 0 ? "#{hr}h #{min}m" : "#{min}m"
+    end
+  end
 end
