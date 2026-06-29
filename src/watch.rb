@@ -1,22 +1,38 @@
-# watch.rb
+# donghua.rb
 require 'httparty'
-require 'cgi'
 
 module Handlers
-  module Watch
-    API_BASE = "https://api.dailymotion.com"
+  module Donghua
+    DM_API = "https://api.dailymotion.com"
+    BILI_API = "https://api.bilibili.com/x/web-interface/search/type"
     CODES_FILE = "codes.txt"
 
     def self.register(bot)
-      bot.command('watch') do |ctx|
-        args = ctx.command_args&.strip
-        parts = args&.split(' ')
+      bot.hears('📺 Donghua') do |ctx|
+        ctx.session[:waiting_for] = 'donghua'
+        ctx.reply(
+          "📺 *Search Donghua*\n\n" \
+          "Send me the donghua name and your code in one message:\n\n" \
+          "Example: `Mo Dao Zu Shi 12345`",
+          parse_mode: "Markdown"
+        )
+      end
 
-        if parts.nil? || parts.length < 2
+      bot.on(:message, chat_type: 'private') do |ctx|
+        next unless ctx.session[:waiting_for] == 'donghua'
+        next if ctx.text&.start_with?('/')
+
+        text = ctx.text&.strip
+        if text.nil? || text.empty?
+          ctx.reply("❌ Please send a valid name and code.")
+          next
+        end
+
+        parts = text.split(' ')
+        if parts.length < 2
           ctx.reply(
-            "🎬 *Watch Anime / Donghua*\n\n" \
-            "Usage: `/watch <name> <code>`\n" \
-            "Example: `/watch the last blade of ming 12345`",
+            "❌ Invalid format.\n\n" \
+            "Usage: `Donghua Name 12345`",
             parse_mode: "Markdown"
           )
           next
@@ -33,43 +49,45 @@ module Handlers
           next
         end
 
+        ctx.session.delete(:waiting_for)
         ctx.typing
 
-        video = find_video(name)
+        # Search both sources
+        dm_video = search_dailymotion(name)
+        bili_video = search_bilibili(name)
 
-        if video.nil?
+        if dm_video.nil? && bili_video.nil?
           ctx.reply(
-            "❌ *#{name}* not found.\n\n" \
-            "Try `/search #{name}` first.",
-            parse_mode: "Markdown"
-          )
-          next
-        end
-
-        stream_url = get_stream_url(video[:id])
-
-        if stream_url.nil?
-          ctx.reply(
-            "❌ Stream unavailable for *#{name}*.\n" \
+            "❌ *#{name}* not found on any server.\n\n" \
             "Try another title.",
             parse_mode: "Markdown"
           )
           next
         end
 
-        watch_link = "https://tomoviestv.netlify.app/watch.html?stream=#{CGI.escape(stream_url)}&title=#{CGI.escape(video[:title])}"
+        # Build watch link with both IDs
+        dm_param = dm_video ? "dm=#{dm_video[:id]}" : ""
+        bili_param = bili_video ? "bil=#{bili_video[:id]}" : ""
+        watch_link = "https://tomoviestv.netlify.app/donghua.html?#{dm_param}&#{bili_param}"
+
+        # Build message showing both sources
+        sources = []
+        sources << "🎬 *Dailymotion:* #{dm_video[:title]}" if dm_video
+        sources << "📺 *Bilibili:* #{bili_video[:title]}" if bili_video
 
         message = <<~MSG
-          ✅ *#{video[:title]}*
+          ✅ *#{name}*
 
-          ⭐ Rating: #{video[:rating] || 'N/A'}
-          👁 Views: #{format_views(video[:views])}
-          ⏱ Duration: #{format_duration(video[:duration])}
+          #{sources.join("\n")}
 
-          🔗 [Watch Now](#{watch_link})
+          🔗 Switch between servers in player!
         MSG
 
-        ctx.reply(message, parse_mode: "Markdown", disable_web_page_preview: true)
+        keyboard = Telegem.inline do
+          row url("▶️ Watch Now", watch_link)
+        end
+
+        ctx.reply(message, parse_mode: "Markdown", reply_markup: keyboard)
       end
     end
 
@@ -80,9 +98,9 @@ module Handlers
       File.readlines(CODES_FILE).map(&:strip).include?(code)
     end
 
-    def self.find_video(name)
+    def self.search_dailymotion(name)
       response = HTTParty.get(
-        "#{API_BASE}/videos",
+        "#{DM_API}/videos",
         query: {
           search: name,
           limit: 1,
@@ -98,55 +116,39 @@ module Handlers
       v = data["list"].first
       {
         id: v["id"],
-        title: v["title"],
-        duration: v["duration"],
-        views: v["views_total"],
-        rating: v["rating"]
+        title: v["title"]
       }
     rescue => e
       nil
     end
 
-    def self.get_stream_url(video_id)
+    def self.search_bilibili(name)
       response = HTTParty.get(
-        "https://www.dailymotion.com/player/metadata/video/#{video_id}"
+        BILI_API,
+        query: {
+          keyword: name,
+          search_type: "media_bangumi"
+        },
+        headers: {
+          "User-Agent" => "Mozilla/5.0",
+          "Referer" => "https://search.bilibili.com"
+        }
       )
+
       return nil unless response.success?
 
       data = response.parsed_response
-      qualities = data["qualities"]
-      return nil unless qualities
+      return nil unless data["data"]["result"]
 
-      auto = qualities["auto"]&.first
-      return auto["url"] if auto && auto["type"] == "application/x-mpegURL"
+      result = data["data"]["result"].first
+      return nil unless result
 
-      qualities.each do |key, streams|
-        next unless streams.is_a?(Array)
-        hls = streams.find { |s| s["type"] == "application/x-mpegURL" }
-        return hls["url"] if hls
-      end
-
-      nil
+      {
+        id: result["season_id"],
+        title: result["title"].gsub(/<[^>]+>/, '')
+      }
     rescue => e
       nil
-    end
-
-    def self.format_views(num)
-      return "N/A" unless num
-      if num >= 1_000_000
-        "#{(num / 1_000_000.0).round(1)}M"
-      elsif num >= 1_000
-        "#{(num / 1_000.0).round(1)}K"
-      else
-        num.to_s
-      end
-    end
-
-    def self.format_duration(seconds)
-      return "N/A" unless seconds
-      min, sec = seconds.divmod(60)
-      hr, min = min.divmod(60)
-      hr > 0 ? "#{hr}h #{min}m" : "#{min}m"
     end
   end
 end
