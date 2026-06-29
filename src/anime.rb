@@ -3,7 +3,7 @@ require 'httparty'
 
 module Handlers
   module Anime
-    API_BASE = "https://api.dailymotion.com"
+    API_BASE = "https://api.4animo.xyz"
     CODES_FILE = "codes.txt"
 
     def self.register(bot)
@@ -51,9 +51,9 @@ module Handlers
         ctx.session.delete(:waiting_for)
         ctx.typing
 
-        video = search_video(name)
+        anime = search_anime(name)
 
-        if video.nil?
+        if anime.nil?
           ctx.reply(
             "❌ *#{name}* not found.\n\n" \
             "Try another title.",
@@ -62,18 +62,18 @@ module Handlers
           next
         end
 
-        watch_link = "https://tomoviestv.netlify.app/anime.html?id=#{video[:id]}"
+        watch_link = "https://tomoviestv.netlify.app/anime.html?id=#{anime[:id]}&ep=1"
 
         message = <<~MSG
-          ✅ *#{video[:title]}*
+          ✅ *#{anime[:title]}*
 
-          ⭐ Rating: #{video[:rating] || 'N/A'}
-          👁 Views: #{format_views(video[:views])}
-          ⏱ Duration: #{format_duration(video[:duration])}
+          📺 *Type:* #{anime[:type] || 'TV'}
+          🎬 *Episodes:* #{anime[:episodes] || 'N/A'}
+          ⭐ *Status:* #{anime[:status] || 'N/A'}
         MSG
 
         keyboard = Telegem.inline do
-          row url("▶️ Watch Now", watch_link)
+          row url("▶️ Watch Episode 1", watch_link)
         end
 
         ctx.reply(message, parse_mode: "Markdown", reply_markup: keyboard)
@@ -87,49 +87,28 @@ module Handlers
       File.readlines(CODES_FILE).map(&:strip).include?(code)
     end
 
-    def self.search_video(name)
+    def self.search_anime(name)
       response = HTTParty.get(
-        "#{API_BASE}/videos",
-        query: {
-          search: name,
-          limit: 1,
-          fields: "id,title,duration,views_total,rating"
-        }
+        "#{API_BASE}/api/v2/hianime/search",
+        query: { q: name }
       )
 
       return nil unless response.success?
 
       data = response.parsed_response
-      return nil if data["list"].nil? || data["list"].empty?
+      return nil unless data["success"]
+      return nil if data["data"]&.empty?
 
-      v = data["list"].first
+      anime = data["data"].first
       {
-        id: v["id"],
-        title: v["title"],
-        duration: v["duration"],
-        views: v["views_total"],
-        rating: v["rating"]
+        id: anime["id"],
+        title: anime["title"],
+        type: anime["type"],
+        episodes: anime["episodes"]&.dig("sub"),
+        status: anime["status"]
       }
     rescue => e
       nil
-    end
-
-    def self.format_views(num)
-      return "N/A" unless num
-      if num >= 1_000_000
-        "#{(num / 1_000_000.0).round(1)}M"
-      elsif num >= 1_000
-        "#{(num / 1_000.0).round(1)}K"
-      else
-        num.to_s
-      end
-    end
-
-    def self.format_duration(seconds)
-      return "N/A" unless seconds
-      min, sec = seconds.divmod(60)
-      hr, min = min.divmod(60)
-      hr > 0 ? "#{hr}h #{min}m" : "#{min}m"
     end
   end
 end
