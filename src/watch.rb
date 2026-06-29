@@ -1,5 +1,6 @@
 # watch.rb
 require 'httparty'
+require 'cgi'
 
 module Handlers
   module Watch
@@ -9,22 +10,13 @@ module Handlers
     def self.register(bot)
       bot.command('watch') do |ctx|
         args = ctx.command_args&.strip
+        parts = args&.split(' ')
 
-        if args.nil? || args.empty?
+        if parts.nil? || parts.length < 2
           ctx.reply(
-            "🎬 *Watch a movie*\n\n" \
-            "Usage: `/watch <movie name> <code>`\n" \
+            "🎬 *Watch Anime / Donghua*\n\n" \
+            "Usage: `/watch <name> <code>`\n" \
             "Example: `/watch the last blade of ming 12345`",
-            parse_mode: "Markdown"
-          )
-          next
-        end
-
-        parts = args.split(' ')
-        if parts.length < 2
-          ctx.reply(
-            "❌ Missing code.\n\n" \
-            "Usage: `/watch <movie name> <code>`",
             parse_mode: "Markdown"
           )
           next
@@ -35,7 +27,7 @@ module Handlers
 
         unless valid_code?(code)
           ctx.reply(
-            "❌ Invalid code. Get a valid code from the group.",
+            "❌ Invalid code. Get a valid code from @tgtomovies2",
             parse_mode: "Markdown"
           )
           next
@@ -54,7 +46,18 @@ module Handlers
           next
         end
 
-        watch_link = "https://tomoviestv.netlify.app/watch.html?id=#{video[:id]}"
+        stream_url = get_stream_url(video[:id])
+
+        if stream_url.nil?
+          ctx.reply(
+            "❌ Stream unavailable for *#{name}*.\n" \
+            "Try another title.",
+            parse_mode: "Markdown"
+          )
+          next
+        end
+
+        watch_link = "https://tomoviestv.netlify.app/watch.html?stream=#{CGI.escape(stream_url)}&title=#{CGI.escape(video[:title])}"
 
         message = <<~MSG
           ✅ *#{video[:title]}*
@@ -100,6 +103,30 @@ module Handlers
         views: v["views_total"],
         rating: v["rating"]
       }
+    rescue => e
+      nil
+    end
+
+    def self.get_stream_url(video_id)
+      response = HTTParty.get(
+        "https://www.dailymotion.com/player/metadata/video/#{video_id}"
+      )
+      return nil unless response.success?
+
+      data = response.parsed_response
+      qualities = data["qualities"]
+      return nil unless qualities
+
+      auto = qualities["auto"]&.first
+      return auto["url"] if auto && auto["type"] == "application/x-mpegURL"
+
+      qualities.each do |key, streams|
+        next unless streams.is_a?(Array)
+        hls = streams.find { |s| s["type"] == "application/x-mpegURL" }
+        return hls["url"] if hls
+      end
+
+      nil
     rescue => e
       nil
     end
