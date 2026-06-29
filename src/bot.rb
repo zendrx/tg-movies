@@ -1,7 +1,7 @@
 # bot.rb
 require 'telegem'
 require 'httparty'
-require 'webrick'
+require 'logger'
 require_relative 'start'
 require_relative 'anime'
 require_relative 'donghua'
@@ -10,7 +10,10 @@ require_relative 'refer'
 require_relative 'admin'
 require_relative 'help'
 
-bot = Telegem.new(ENV['BOT_TOKEN'])
+logger = Logger.new($stdout)
+logger.level = Logger::DEBUG
+
+bot = Telegem.new(ENV['BOT_TOKEN'], logger: logger)
 
 Handlers::Start.register(bot)
 Handlers::Anime.register(bot)
@@ -20,7 +23,5 @@ Handlers::Refer.register(bot)
 Handlers::Admin.register(bot)
 Handlers::Help.register(bot)
 
-# Keep-alive web server
-
-
+logger.info "Bot starting..."
 bot.start_polling
